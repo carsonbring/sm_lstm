@@ -2,6 +2,9 @@ import sqlite3
 from datetime import datetime, timedelta
 import yfinance as yf
 import pandas as pd
+import numpy as np
+import torch
+from torch.utils.data import TensorDataset, DataLoader
 
 
 def retrieve_data(stock_ticker, db_path='stocks.db'):
@@ -10,14 +13,53 @@ def retrieve_data(stock_ticker, db_path='stocks.db'):
     cursor = conn.cursor()
 
     # Retrieve data from the database
-    cursor.execute(f"SELECT Date, Close FROM {stock_ticker} ORDER BY Date ASC")
+    cursor.execute(f"SELECT Date, Adj_Close FROM {stock_ticker} ORDER BY Date ASC")
     data = cursor.fetchall()
     if not data:
         print(f"No data found in the database. Please create the table for {stock_ticker} first.")
     # Close the connection
     conn.close()
-
     return data
+
+
+def prepare_data(data, seq_length):
+    # Convert data to numpy array
+    data_array = np.array(data)
+    print(data_array)
+    print("-------------------")
+    # Extract features and target variable
+    # I need to retrieve some more useful features before I get more into the LSTM development
+    features = data_array[:, 1].astype(np.float32)
+
+    print(features)
+    # Normalize features
+    min_val = np.min(features, axis=0)
+    max_val = np.max(features, axis=0)
+    features = (features - min_val) / (max_val - min_val)
+
+    # Convert data into sequences
+    sequences = []
+    targets = []
+    for i in range(len(features) - seq_length):
+        sequences.append(features[i:i + seq_length])
+        targets.append(features[i + seq_length])
+
+    sequences = np.array(sequences)
+    targets = np.array(targets)
+    # Convert sequences and targets to PyTorch tensors
+    sequences_tensor = torch.tensor(sequences)
+    targets_tensor = torch.tensor(targets)
+
+    return sequences_tensor, targets_tensor
+
+
+def create_data_loaders(sequences, targets, batch_size):
+    # Create TensorDataset
+    dataset = TensorDataset(sequences, targets)
+    # Create DataLoader
+    data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+
+    return data_loader
 
 
 def update_stock_table(stock_ticker, db_path='stocks.db'):
@@ -131,4 +173,4 @@ def create_stock_table_if_not_exists(stock_ticker, db_path='stocks.db'):
     # Close the connection
     conn.close()
 
-update_stock_table('AAPL')
+prepare_data(retrieve_data('AAPL'), 10)

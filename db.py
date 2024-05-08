@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 import torch
 from torch.utils.data import TensorDataset, DataLoader
-
+import ta
 
 def retrieve_data(stock_ticker, db_path='stocks.db'):
     # Connect to SQLite database
@@ -132,6 +132,11 @@ def obtain_stock_data_yfinance(stock_ticker):
     end_date = datetime.now().strftime('%Y-%m-%d')
     start_date = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
     df = yf.download(stock_ticker, start=start_date, end=end_date)
+    df['RSI'] = ta.momentum.RSIIndicator(df['Close'], window=14).rsi()
+    indicator_bb = ta.volatility.BollingerBands(df['Close'], window=20, window_dev=2)
+    df['BB_Middle'] = indicator_bb.bollinger_mavg()
+    df['BB_Upper'] = indicator_bb.bollinger_hband()
+    df['BB_Lower'] = indicator_bb.bollinger_lband()
     return df
 
 
@@ -154,7 +159,11 @@ def create_stock_table_if_not_exists(stock_ticker, db_path='stocks.db'):
                 Low REAL,
                 Close REAL,
                 Adj_Close REAL,
-                Volume INTEGER
+                Volume INTEGER,
+                RSI REAL,
+                BB_Middle REAL,
+                BB_Upper REAL,
+                BB_Lower REAL
             )
         """)
         df = obtain_stock_data_yfinance(stock_ticker)
@@ -173,4 +182,17 @@ def create_stock_table_if_not_exists(stock_ticker, db_path='stocks.db'):
     # Close the connection
     conn.close()
 
-prepare_data(retrieve_data('AAPL'), 10)
+# prepare_data(retrieve_data('AAPL'), 10)
+# Set option to display all columns
+pd.set_option('display.max_columns', None)
+
+# Set option to display all rows
+pd.set_option('display.max_rows', None)
+
+# Increase the maximum width of each column
+pd.set_option('display.max_colwidth', None)
+
+# Optionally, set a large width for the terminal display to avoid wrapping
+pd.set_option('display.width', 1000)
+
+print(obtain_stock_data_yfinance('AAPL'))

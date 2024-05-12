@@ -1,11 +1,7 @@
 import sqlite3
 from datetime import datetime, timedelta
-import yfinance as yf
 import pandas as pd
-import numpy as np
-import torch
-from torch.utils.data import TensorDataset, DataLoader
-import scraper, utils
+import utils
 
 
 def retrieve_data(stock_ticker, db_path='stocks.db'):
@@ -21,46 +17,6 @@ def retrieve_data(stock_ticker, db_path='stocks.db'):
     # Close the connection
     conn.close()
     return data
-
-
-def prepare_data(data, seq_length):
-    # Convert data to numpy array
-    data_array = np.array(data)
-    print(data_array)
-    print("-------------------")
-    # Extract features and target variable
-    # I need to retrieve some more useful features before I get more into the LSTM development
-    features = data_array[:, 1].astype(np.float32)
-
-    print(features)
-    # Normalize features
-    min_val = np.min(features, axis=0)
-    max_val = np.max(features, axis=0)
-    features = (features - min_val) / (max_val - min_val)
-
-    # Convert data into sequences
-    sequences = []
-    targets = []
-    for i in range(len(features) - seq_length):
-        sequences.append(features[i:i + seq_length])
-        targets.append(features[i + seq_length])
-
-    sequences = np.array(sequences)
-    targets = np.array(targets)
-    # Convert sequences and targets to PyTorch tensors
-    sequences_tensor = torch.tensor(sequences)
-    targets_tensor = torch.tensor(targets)
-
-    return sequences_tensor, targets_tensor
-
-
-def create_data_loaders(sequences, targets, batch_size):
-    # Create TensorDataset
-    dataset = TensorDataset(sequences, targets)
-    # Create DataLoader
-    data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
-
-    return data_loader
 
 
 def update_stock_table(stock_ticker, db_path='stocks.db'):
@@ -90,22 +46,24 @@ def update_stock_table(stock_ticker, db_path='stocks.db'):
             # Fetch new data from Yahoo Finance
             start_date = (last_date + timedelta(days=1)).strftime('%Y-%m-%d')
             end_date = today.strftime('%Y-%m-%d')
-            new_df = yf.download(stock_ticker, start=start_date, end=end_date)
+            new_df = utils.obtain_stock_data(stock_ticker, start_date, end_date)
 
             # Add new records to the table and remove the first row for each new record added
             for index, row in new_df.iterrows():
                 cursor.execute(f"""
                                 SELECT * FROM {stock_ticker} WHERE Date = ?
-                            """, (index.strftime('%Y-%m-%d'),))
+                            """, (row['Date'].strftime('%Y-%m-%d'),))
+
                 existing_data = cursor.fetchone()
                 if not existing_data:
                     new_records_added = True
                     cursor.execute(f"""
-                                    INSERT INTO {stock_ticker} (Date, Open, High, Low, Close, Adj_Close, Volume)
+                                    INSERT INTO {stock_ticker} (Date, Open, High, Low, Close, Adj_Close, Volume, EPS_TTM, PE_Ratio, BB_Middle, BB_Upper, BB_Lower, MACD, MACD_Signal, MACD_Diff, MFI, Stoch_Osc, Stoch_Osc_Signal)
                                     VALUES (?, ?, ?, ?, ?, ?, ?)
                                 """, (
-                        index.strftime('%Y-%m-%d'), row['Open'], row['High'], row['Low'], row['Close'], row['Adj Close'],
-                        row['Volume']))
+                        row['Date'].strftime('%Y-%m-%d'), row['Open'], row['High'], row['Low'], row['Close'], row['Adj Close'],
+                        row['Volume'], row['EPS_TTM'], row['PE_Ratio'], row['BB_Middle'], row['BB_Upper'], row['BB_Lower'],
+                        row['MACD'], row['MACD_Signal'], row['MACD_Diff'], row['MFI'], row['Stoch_Osc'], row['Stoch_Osc_Signal']))
                     # Remove the first row for each new record added
                     cursor.execute(f"""
                                 DELETE FROM {stock_ticker} 
@@ -149,6 +107,8 @@ def create_stock_table_if_not_exists(stock_ticker, db_path='stocks.db'):
                 Close REAL,
                 Adj_Close REAL,
                 Volume INTEGER,
+                EPS_TTM REAL,
+                PE_Ratio REAL,
                 BB_Middle REAL,
                 BB_Upper REAL,
                 BB_Lower REAL,
@@ -161,21 +121,25 @@ def create_stock_table_if_not_exists(stock_ticker, db_path='stocks.db'):
                 
             )
         """)
-        df = utils.obtain_stock_data(stock_ticker)
+        end_date = datetime.now().strftime('%Y-%m-%d')
+        start_date = (datetime.now() - timedelta(days=1000)).strftime('%Y-%m-%d')
+        df = utils.obtain_stock_data(stock_ticker, start_date, end_date)
 
         # Insert data into the table
         for index, row in df.iterrows():
             cursor.execute(f"""
-                INSERT INTO {stock_ticker} (Date, Open, High, Low, Close, Adj_Close, Volume)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (index.strftime('%Y-%m-%d'), row['Open'], row['High'], row['Low'], row['Close'], row['Adj Close'],
-                  row['Volume']))
+                INSERT INTO {stock_ticker} (Date, Open, High, Low, Close, Adj_Close, Volume, EPS_TTM, PE_Ratio, BB_Middle, BB_Upper, BB_Lower, MACD, MACD_Signal, MACD_Diff, MFI, Stoch_Osc, Stoch_Osc_Signal) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (row['Date'].strftime('%Y-%m-%d'), row['Open'], row['High'], row['Low'], row['Close'], row['Adj Close'],
+                  row['Volume'], row['EPS_TTM'], row['PE_Ratio'], row['BB_Middle'], row['BB_Upper'], row['BB_Lower'],
+                    row['MACD'], row['MACD_Signal'], row['MACD_Diff'], row['MFI'], row['Stoch_Osc'], row['Stoch_Osc_Signal']))
 
         # Commit changes to the database
         conn.commit()
-
     # Close the connection
+    
     conn.close()
+
 
 # prepare_data(retrieve_data('AAPL'), 10)
 # Set option to display all columns
@@ -190,7 +154,10 @@ pd.set_option('display.max_colwidth', None)
 # Optionally, set a large width for the terminal display to avoid wrapping
 pd.set_option('display.width', 1000)
 
+# update_stock_table('AAPL')
+
 #print(obtain_stock_data_yfinance('AAPL'))
-print(scraper.get_earnings_histo('AAPL'))
-print('----------------------------------------')
-print(utils.obtain_stock_data('AAPL'))
+# print(scraper.get_earnings_histo('AAPL'))
+# print('----------------------------------------')
+# print(utils.obtain_stock_data('AAPL'))
+create_stock_table_if_not_exists('AAPL')

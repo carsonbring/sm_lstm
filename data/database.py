@@ -1,31 +1,21 @@
 import sqlite3
 from datetime import datetime, timedelta
 import pandas as pd
-import utils
+from data import loader
 
 
-def retrieve_data(stock_ticker, db_path='stocks.db'):
+def read_data(stock_ticker, db_path='stocks.db'):
     # Connect to SQLite database
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
     # Retrieve data from the database
-    cursor.execute(f"SELECT 
-                Date,
-                Adj_Close,
-                Volume,
-                EPS_TTM,
-                PE_Ratio,
-                BB_Middle,
-                BB_Upper,
-                BB_Lower,
-                MACD,
-                MACD_Signal,
-                MACD_Diff,
-                MFI,
-                Stoch_Osc,
-                Stoch_Osc_Signal
-        FROM {stock_ticker} ORDER BY Date ASC")
+    cursor.execute(f"""
+        SELECT 
+            Date, Adj_Close, Volume, EPS_TTM, PE_Ratio, BB_Middle, BB_Upper, BB_Lower, 
+            MACD, MACD_Signal, MACD_Diff, MFI, Stoch_Osc, Stoch_Osc_Signal
+        FROM {stock_ticker} ORDER BY Date ASC
+    """)  
     data = cursor.fetchall()
     if not data:
         print(f"No data found in the database. Please create the table for {stock_ticker} first.")
@@ -61,7 +51,7 @@ def update_stock_table(stock_ticker, db_path='stocks.db'):
             # Fetch new data from Yahoo Finance
             start_date = (last_date + timedelta(days=1)).strftime('%Y-%m-%d')
             end_date = today.strftime('%Y-%m-%d')
-            new_df = utils.obtain_stock_data(stock_ticker, start_date, end_date)
+            new_df = loader.obtain_stock_data(stock_ticker, start_date, end_date)
 
             # Add new records to the table and remove the first row for each new record added
             for index, row in new_df.iterrows():
@@ -138,7 +128,7 @@ def create_stock_table_if_not_exists(stock_ticker, db_path='stocks.db'):
         """)
         end_date = datetime.now().strftime('%Y-%m-%d')
         start_date = (datetime.now() - timedelta(days=1000)).strftime('%Y-%m-%d')
-        df = utils.obtain_stock_data(stock_ticker, start_date, end_date)
+        df = loader.obtain_stock_data(stock_ticker, start_date, end_date)
 
         # Insert data into the table
         for index, row in df.iterrows():
@@ -155,24 +145,3 @@ def create_stock_table_if_not_exists(stock_ticker, db_path='stocks.db'):
     
     conn.close()
 
-
-# prepare_data(retrieve_data('AAPL'), 10)
-# Set option to display all columns
-pd.set_option('display.max_columns', None)
-
-# Set option to display all rows
-pd.set_option('display.max_rows', None)
-
-# Increase the maximum width of each column
-pd.set_option('display.max_colwidth', None)
-
-# Optionally, set a large width for the terminal display to avoid wrapping
-pd.set_option('display.width', 1000)
-
-# update_stock_table('AAPL')
-
-#print(obtain_stock_data_yfinance('AAPL'))
-# print(scraper.get_earnings_histo('AAPL'))
-# print('----------------------------------------')
-# print(utils.obtain_stock_data('AAPL'))
-create_stock_table_if_not_exists('AMD')

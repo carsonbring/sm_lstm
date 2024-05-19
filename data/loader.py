@@ -5,19 +5,7 @@ import ta
 from torch.utils.data import TensorDataset, DataLoader
 import torch
 import numpy as np
-
-
-def calculate_ttm_eps(current_date, eps_data):
-    # Filter reports that occurred before the current date
-    past_eps = eps_data[eps_data['Date'] <= current_date].copy()
-    past_eps.loc[:, 'Reported EPS'] = pd.to_numeric(past_eps['Reported EPS'], errors='coerce')
-    # Get the last four entries or fewer if not available
-    last_four_eps = past_eps.tail(4)
-
-    # Sum their EPS values to get the TTM EPS
-    return last_four_eps['Reported EPS'].sum()
-
-
+from utils import calculate_ttm_eps
 def obtain_stock_data(stock_ticker, start_date, end_date):
     # Fetch the last 30 days of prices using Yahoo Finance
     df = yf.download(stock_ticker, start=start_date, end=end_date)
@@ -35,19 +23,19 @@ def obtain_stock_data(stock_ticker, start_date, end_date):
 
         df['PE_Ratio'] = df['Close'] / df['EPS_TTM']
 
-    indicator_bb = ta.volatility.BollingerBands(df['Close'], window=20, window_dev=2)
+    indicator_bb = ta.volatility.BollingerBands(df['Close'], window=20, window_dev=2) #pyright: ignore
     df['BB_Middle'] = indicator_bb.bollinger_mavg()
     df['BB_Upper'] = indicator_bb.bollinger_hband()
     df['BB_Lower'] = indicator_bb.bollinger_lband()
 
-    indicator_macd = ta.trend.MACD(close=df['Close'], window_slow=26, window_fast=12, window_sign=9)
+    indicator_macd = ta.trend.MACD(close=df['Close'], window_slow=26, window_fast=12, window_sign=9) #pyright: ignore
     df['MACD'] = indicator_macd.macd()
     df['MACD_Signal'] = indicator_macd.macd_signal()
     df['MACD_Diff'] = indicator_macd.macd_diff()
 
-    df['MFI'] = ta.volume.MFIIndicator(df['High'], df['Low'], df['Close'], df['Volume'], window=14).money_flow_index()
+    df['MFI'] = ta.volume.MFIIndicator(df['High'], df['Low'], df['Close'], df['Volume'], window=14).money_flow_index() #pyright: ignore
 
-    indicator_so = ta.momentum.StochasticOscillator(high=df['High'], low=df['Low'], close=df['Close'], window=14, smooth_window=3)
+    indicator_so = ta.momentum.StochasticOscillator(high=df['High'], low=df['Low'], close=df['Close'], window=14, smooth_window=3) #pyright: ignore
     df['Stoch_Osc'] = indicator_so.stoch()
     df['Stoch_Osc_Signal'] = indicator_so.stoch_signal()
     df = df.dropna()

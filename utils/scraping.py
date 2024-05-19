@@ -1,5 +1,4 @@
 import requests
-from bs4 import BeautifulSoup
 import pandas as pd
 from typing import Union
 
@@ -27,7 +26,7 @@ def get_earnings_histo(symbol: str) -> Union[None, pd.DataFrame]:
 
     return results_df
 
-
+"""
 def get_redirect_url(stock_ticker):
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
@@ -53,3 +52,4 @@ def get_PE_ratio(stock_ticker):
     except requests.exceptions.RequestException as e:
         print(f"Getting PE ratio failed: {e}")
         return None
+"""

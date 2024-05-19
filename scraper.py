@@ -22,8 +22,8 @@ def get_earnings_histo(symbol: str) -> Union[None, pd.DataFrame]:
         print(f"No earnings histo found for ticker: {symbol}")
         return None
     dates_df = results_df['Earnings Date'].str.split(',', expand=True, n=2)[[0, 1]]
-    results_df['earnings_date'] = dates_df[0].astype(str) + ' ' + dates_df[1].astype(str)
-    results_df['earnings_date'] = pd.to_datetime(results_df['earnings_date'])
+    results_df['earnings_date'] = dates_df[0].astype(str) + dates_df[1].astype(str)
+    results_df['earnings_date'] = pd.to_datetime(results_df['earnings_date'], format='%b %d %Y')
 
     return results_df
 

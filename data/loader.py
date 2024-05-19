@@ -1,15 +1,15 @@
 import pandas as pd
-import scraper
 import yfinance as yf
 import ta
 from torch.utils.data import TensorDataset, DataLoader
 import torch
 import numpy as np
-from utils import calculate_ttm_eps
+from utils import get_earnings_histo, calculate_ttm_eps
+
 def obtain_stock_data(stock_ticker, start_date, end_date):
     # Fetch the last 30 days of prices using Yahoo Finance
     df = yf.download(stock_ticker, start=start_date, end=end_date)
-    eps_df = scraper.get_earnings_histo(stock_ticker)
+    eps_df = get_earnings_histo(stock_ticker)
     df.reset_index(inplace=True)
     df['Date'] = pd.to_datetime(df['Date'])
     if eps_df is not None:
@@ -49,12 +49,12 @@ def prepare_data(data, seq_length):
     print("-------------------")
     # Extract features and target variable
     # I need to retrieve some more useful features before I get more into the LSTM development
-    features = data_array[:, 1].astype(np.float32)
+    features = data_array.astype(np.float32)
 
-    print(features)
     # Normalize features
     min_val = np.min(features, axis=0)
     max_val = np.max(features, axis=0)
+    max_val[max_val == min_val] = 1
     features = (features - min_val) / (max_val - min_val)
 
     # Convert data into sequences
@@ -62,10 +62,10 @@ def prepare_data(data, seq_length):
     targets = []
     for i in range(len(features) - seq_length):
         sequences.append(features[i:i + seq_length])
-        targets.append(features[i + seq_length])
+        targets.append(features[i + seq_length, 0])
 
-    sequences = np.array(sequences)
-    targets = np.array(targets)
+    sequences = np.array(sequences, dtype=np.float32)
+    targets = np.array(targets, dtype=np.float32).reshape(-1, 1)
     # Convert sequences and targets to PyTorch tensors
     sequences_tensor = torch.tensor(sequences)
     targets_tensor = torch.tensor(targets)

@@ -1,5 +1,9 @@
 import pandas as pd 
-from data import create_stock_table_if_not_exists
+from data import create_stock_table_if_not_exists, read_data
+from data.loader import prepare_data, create_data_loaders
+from model.train import train, evaluate
+
+
 # Set option to display all columns
 pd.set_option('display.max_columns', None)
 
@@ -18,4 +22,11 @@ pd.set_option('display.width', 1000)
 # print(scraper.get_earnings_histo('AAPL'))
 # print('----------------------------------------')
 # print(utils.obtain_stock_data('AAPL'))
-create_stock_table_if_not_exists('AMD')
+# create_stock_table_if_not_exists('AMD')
+#
+create_stock_table_if_not_exists('AAPL')
+data = read_data('AAPL')
+print(data)
+train(data)
+
+evaluate(data)

@@ -12,7 +12,7 @@ def read_data(stock_ticker, db_path='stocks.db'):
     # Retrieve data from the database
     cursor.execute(f"""
         SELECT 
-            Date, Adj_Close, Volume, EPS_TTM, PE_Ratio, BB_Middle, BB_Upper, BB_Lower, 
+            Adj_Close, Volume, EPS_TTM, PE_Ratio, BB_Middle, BB_Upper, BB_Lower, 
             MACD, MACD_Signal, MACD_Diff, MFI, Stoch_Osc, Stoch_Osc_Signal
         FROM {stock_ticker} ORDER BY Date ASC
     """)  
